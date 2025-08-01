@@ -30,9 +30,25 @@ RCT_EXPORT_METHOD(start) {
 
     // most audio players set session category to "Playback", record won't work in this mode
     // therefore set session category to "Record" before recording
+    NSError *error = nil;
+    // 设置播放录音模式，允许蓝牙耳机，默认扬声器，插耳机自动切换
     [[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayAndRecord
-                                 withOptions:AVAudioSessionCategoryOptionDefaultToSpeaker
-                                       error:nil];
+                                     withOptions:AVAudioSessionCategoryOptionAllowBluetooth
+                                           error:&error];
+    if (error) {
+        RCTLogInfo(@"Error setting AVAudioSession category: %@", error);
+    }
+
+    // 不强制扬声器，系统根据插拔自动切换
+    [[AVAudioSession sharedInstance] overrideOutputAudioPort:AVAudioSessionPortOverrideNone error:&error];
+    if (error) {
+        RCTLogInfo(@"Error overriding output audio port: %@", error);
+    }
+
+    [[AVAudioSession sharedInstance] setActive:YES error:&error];
+    if (error) {
+        RCTLogInfo(@"Error activating AVAudioSession: %@", error);
+    }
 
     _recordState.mIsRunning = true;
     _recordState.mCurrentPacket = 0;
