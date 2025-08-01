@@ -30,9 +30,10 @@ RCT_EXPORT_METHOD(start) {
 
     // most audio players set session category to "Playback", record won't work in this mode
     // therefore set session category to "Record" before recording
+    
     NSError *error = nil;
 
-    // 设置模式为 PlayAndRecord，允许蓝牙耳机
+    // 设置播放录音，允许蓝牙
     [[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayAndRecord
                                     withOptions:AVAudioSessionCategoryOptionAllowBluetooth
                                         error:&error];
@@ -40,16 +41,32 @@ RCT_EXPORT_METHOD(start) {
         RCTLogInfo(@"Error setting category: %@", error);
     }
 
-    // 激活 session
+    // 激活会话
     [[AVAudioSession sharedInstance] setActive:YES error:&error];
     if (error) {
         RCTLogInfo(@"Error activating session: %@", error);
     }
 
-    // 设置默认使用扬声器播放（插耳机会自动切换，无需 override back）
-    [[AVAudioSession sharedInstance] overrideOutputAudioPort:AVAudioSessionPortOverrideSpeaker error:&error];
-    if (error) {
-        RCTLogInfo(@"Error setting speaker output: %@", error);
+    // 获取当前输出路线
+    AVAudioSessionRouteDescription *route = [[AVAudioSession sharedInstance] currentRoute];
+    BOOL hasHeadphones = NO;
+
+    for (AVAudioSessionPortDescription *output in route.outputs) {
+        if ([output.portType isEqualToString:AVAudioSessionPortHeadphones] ||
+            [output.portType isEqualToString:AVAudioSessionPortBluetoothA2DP] ||
+            [output.portType isEqualToString:AVAudioSessionPortBluetoothLE] ||
+            [output.portType isEqualToString:AVAudioSessionPortBluetoothHFP]) {
+            hasHeadphones = YES;
+            break;
+        }
+    }
+
+    // 如果没有耳机，就走扬声器；否则走耳机（系统自动切）
+    if (!hasHeadphones) {
+        [[AVAudioSession sharedInstance] overrideOutputAudioPort:AVAudioSessionPortOverrideSpeaker error:&error];
+        if (error) {
+            RCTLogInfo(@"Error overriding to speaker: %@", error);
+        }
     }
 
     _recordState.mIsRunning = true;
