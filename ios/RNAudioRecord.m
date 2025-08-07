@@ -19,10 +19,6 @@ RCT_EXPORT_METHOD(init:(NSDictionary *) options) {
     
     _recordState.bufferByteSize = 2048;
     _recordState.mSelf = self;
-    
-    NSString *fileName = options[@"wavFile"] == nil ? @"audio.wav" : options[@"wavFile"];
-    NSString *docDir = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
-    _filePath = [NSString stringWithFormat:@"%@/%@", docDir, fileName];
 }
 
 RCT_EXPORT_METHOD(start) {
@@ -72,10 +68,6 @@ RCT_EXPORT_METHOD(start) {
     _recordState.mIsRunning = true;
     _recordState.mCurrentPacket = 0;
     
-    CFURLRef url = CFURLCreateWithString(kCFAllocatorDefault, (CFStringRef)_filePath, NULL);
-    AudioFileCreateWithURL(url, kAudioFileWAVEType, &_recordState.mDataFormat, kAudioFileFlags_EraseFile, &_recordState.mAudioFile);
-    CFRelease(url);
-    
     AudioQueueNewInput(&_recordState.mDataFormat, HandleInputBuffer, &_recordState, NULL, NULL, 0, &_recordState.mQueue);
     for (int i = 0; i < kNumberBuffers; i++) {
         AudioQueueAllocateBuffer(_recordState.mQueue, _recordState.bufferByteSize, &_recordState.mBuffers[i]);
@@ -91,12 +83,8 @@ RCT_EXPORT_METHOD(stop:(RCTPromiseResolveBlock)resolve
         _recordState.mIsRunning = false;
         AudioQueueStop(_recordState.mQueue, true);
         AudioQueueDispose(_recordState.mQueue, true);
-        AudioFileClose(_recordState.mAudioFile);
     }
-    resolve(_filePath);
-    unsigned long long fileSize = [[[NSFileManager defaultManager] attributesOfItemAtPath:_filePath error:nil] fileSize];
-    RCTLogInfo(@"file path %@", _filePath);
-    RCTLogInfo(@"file size %llu", fileSize);
+    resolve(nil);
 }
 
 void HandleInputBuffer(void *inUserData,
@@ -109,17 +97,6 @@ void HandleInputBuffer(void *inUserData,
     
     if (!pRecordState->mIsRunning) {
         return;
-    }
-    
-    if (AudioFileWritePackets(pRecordState->mAudioFile,
-                              false,
-                              inBuffer->mAudioDataByteSize,
-                              inPacketDesc,
-                              pRecordState->mCurrentPacket,
-                              &inNumPackets,
-                              inBuffer->mAudioData
-                              ) == noErr) {
-        pRecordState->mCurrentPacket += inNumPackets;
     }
     
     short *samples = (short *) inBuffer->mAudioData;
