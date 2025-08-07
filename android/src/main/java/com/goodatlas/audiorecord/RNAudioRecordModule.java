@@ -73,13 +73,13 @@ public class RNAudioRecordModule extends ReactContextBaseJavaModule {
             audioSource = options.getInt("audioSource");
         }
 
-        String documentDirectoryPath = getReactApplicationContext().getFilesDir().getAbsolutePath();
-        outFile = documentDirectoryPath + "/" + "audio.wav";
-        tmpFile = documentDirectoryPath + "/" + "temp.pcm";
-        if (options.hasKey("wavFile")) {
-            String fileName = options.getString("wavFile");
-            outFile = documentDirectoryPath + "/" + fileName;
-        }
+        // String documentDirectoryPath = getReactApplicationContext().getFilesDir().getAbsolutePath();
+        // outFile = documentDirectoryPath + "/" + "audio.wav";
+        // tmpFile = documentDirectoryPath + "/" + "temp.pcm";
+        // if (options.hasKey("wavFile")) {
+        //     String fileName = options.getString("wavFile");
+        //     outFile = documentDirectoryPath + "/" + fileName;
+        // }
 
         isRecording = false;
         eventEmitter = reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class);
@@ -97,12 +97,36 @@ public class RNAudioRecordModule extends ReactContextBaseJavaModule {
 
         Thread recordingThread = new Thread(new Runnable() {
             public void run() {
+                // try {
+                //     int bytesRead;
+                //     int count = 0;
+                //     String base64Data;
+                //     byte[] buffer = new byte[bufferSize];
+                //     FileOutputStream os = new FileOutputStream(tmpFile);
+
+                //     while (isRecording) {
+                //         bytesRead = recorder.read(buffer, 0, buffer.length);
+
+                //         // skip first 2 buffers to eliminate "click sound"
+                //         if (bytesRead > 0 && ++count > 2) {
+                //             base64Data = Base64.encodeToString(buffer, Base64.NO_WRAP);
+                //             eventEmitter.emit("data", base64Data);
+                //             os.write(buffer, 0, bytesRead);
+                //         }
+                //     }
+
+                //     recorder.stop();
+                //     os.close();
+                //     saveAsWav();
+                //     stopRecordingPromise.resolve(outFile);
+                // } catch (Exception e) {
+                //     e.printStackTrace();
+                // }
                 try {
                     int bytesRead;
                     int count = 0;
                     String base64Data;
                     byte[] buffer = new byte[bufferSize];
-                    FileOutputStream os = new FileOutputStream(tmpFile);
 
                     while (isRecording) {
                         bytesRead = recorder.read(buffer, 0, buffer.length);
@@ -111,14 +135,15 @@ public class RNAudioRecordModule extends ReactContextBaseJavaModule {
                         if (bytesRead > 0 && ++count > 2) {
                             base64Data = Base64.encodeToString(buffer, Base64.NO_WRAP);
                             eventEmitter.emit("data", base64Data);
-                            os.write(buffer, 0, bytesRead);
                         }
                     }
 
-                    recorder.stop();
-                    os.close();
-                    saveAsWav();
-                    stopRecordingPromise.resolve(outFile);
+                    if (recorder != null) {
+                        recorder.stop();
+                        recorder.release();
+                        recorder = null;
+                    }
+
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -128,10 +153,15 @@ public class RNAudioRecordModule extends ReactContextBaseJavaModule {
         recordingThread.start();
     }
 
+    // @ReactMethod
+    // public void stop(Promise promise) {
+    //     isRecording = false;
+    //     stopRecordingPromise = promise;
+    // }
+
     @ReactMethod
-    public void stop(Promise promise) {
+    public void stop() {
         isRecording = false;
-        stopRecordingPromise = promise;
     }
 
     private void saveAsWav() {
